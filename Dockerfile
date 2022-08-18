@@ -8,7 +8,7 @@ ARG GIT_LAST_TAG
 ARG GIT_MODIFIED
 ARG GIT_REPO
 ARG BUILD_DATE
-
+ENV GOPROXY "https://goproxy.cn,direct" 
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -25,10 +25,10 @@ COPY controllers/ controllers/
 COPY pkg/ pkg/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH GO111MODULE=on go build \
-        -gcflags "-N -l" \
-        -ldflags "-X main.GitRepo=$GIT_REPO -X main.GitTag=$GIT_LAST_TAG -X main.GitCommit=$GIT_HEAD_COMMIT -X main.GitDirty=$GIT_MODIFIED -X main.BuildTime=$BUILD_DATE" \
-        -o manager
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build \
+  -gcflags "-N -l" \
+  -ldflags "-X main.GitRepo=$GIT_REPO -X main.GitTag=$GIT_LAST_TAG -X main.GitCommit=$GIT_HEAD_COMMIT -X main.GitDirty=$GIT_MODIFIED -X main.BuildTime=$BUILD_DATE" \
+  -o manager
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

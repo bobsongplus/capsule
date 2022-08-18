@@ -651,7 +651,6 @@ spec:
                     type: object
                 required:
                 - items
-                - namespaceSelector
                 type: object
               additionalRoleBindings:
                 description: Specifies additional RoleBindings assigned to the Tenant. Capsule will ensure that all namespaces in the Tenant always contain the RoleBinding for the given ClusterRole. Optional.

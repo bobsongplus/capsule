@@ -5,7 +5,7 @@ import (
 )
 
 type AdditionalResources struct {
-	NamespaceSelector metav1.LabelSelector `json:"namespaceSelector"`
+	NamespaceSelector metav1.LabelSelector `json:"namespaceSelector,omitempty"`
 	// list of k8s resources in yaml format
 	Items []string `json:"items"`
 }

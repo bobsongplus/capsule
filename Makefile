@@ -13,7 +13,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= clastix/capsule:$(VERSION)
+IMG ?= 192.168.1.17/system_containers/capsule:$(VERSION)
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 
