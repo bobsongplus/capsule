@@ -3,14 +3,15 @@ package tenant
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/util/yaml"
-
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -70,6 +71,18 @@ func (r *Manager) syncAdditionalResources(tenant *capsulev1beta1.Tenant) error {
 			if err != nil {
 				return err
 			}
+			if isRoleBinding(&object) {
+				rb, err := asRoleBinding(&object)
+				if err != nil {
+					return err
+				}
+				for k, _ := range rb.Subjects {
+					rb.Subjects[k].Namespace = ns
+				}
+				object.Object, _ = runtime.DefaultUnstructuredConverter.ToUnstructured(rb)
+
+			}
+
 			object.SetNamespace(ns)
 			_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, &object, func() error {
 				return nil
@@ -84,4 +97,33 @@ func (r *Manager) syncAdditionalResources(tenant *capsulev1beta1.Tenant) error {
 		}
 	}
 	return errGroup.Wait()
+}
+
+func isRoleBinding(obj *unstructured.Unstructured) bool {
+	return obj.GetKind() == "RoleBinding"
+}
+
+func asRoleBinding(obj *unstructured.Unstructured) (*rbac.RoleBinding, error) {
+	if isNil(obj) {
+		return nil, nil
+	}
+	var rb rbac.RoleBinding
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &rb); err != nil {
+		return nil, err
+	}
+	return &rb, nil
+}
+
+func isNil(object runtime.Object) bool {
+	if object == nil {
+		return true
+	}
+	switch object.(type) {
+	case *unstructured.Unstructured:
+		obj := object.(*unstructured.Unstructured)
+		if obj == nil {
+			return true
+		}
+	}
+	return false
 }
