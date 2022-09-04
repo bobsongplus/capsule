@@ -51,6 +51,11 @@ func (r *patchHandler) OnUpdate(c client.Client, decoder *admission.Decoder, rec
 
 			return &response
 		}
+		if _, ok := ns.ObjectMeta.Labels[ln]; !ok {
+			if err := decoder.DecodeRaw(req.Object, ns); err != nil {
+				return utils.ErroredResponse(err)
+			}
+		}
 
 		// Extract Tenant from namespace
 		e := fmt.Sprintf("namespace/%s can not be patched", ns.Name)
