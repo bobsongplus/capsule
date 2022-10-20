@@ -12,10 +12,15 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	clientv1 "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -67,6 +72,10 @@ func (h *handler) setOwnerRef(ctx context.Context, req admission.Request, client
 
 		return &response
 	}
+	var removedFromTenant bool
+	if _, ok := ns.ObjectMeta.Labels["removedFromTenant"]; ok {
+		removedFromTenant = true
+	}
 	// If we already had TenantName label on NS -> assign to it
 	if label, ok := ns.ObjectMeta.Labels[ln]; ok {
 		// retrieving the selected Tenant
@@ -84,8 +93,45 @@ func (h *handler) setOwnerRef(ctx context.Context, req admission.Request, client
 
 			return &response
 		}
+
 		// Patching the response
 		response := h.patchResponseForOwnerRef(tnt, ns, recorder)
+
+		if removedFromTenant {
+			// remove rolebinding in namespace
+			selector := labels.NewSelector()
+
+			var exists *labels.Requirement
+
+			exists, _ = labels.NewRequirement(ln, selection.Exists, []string{})
+			selector = selector.Add(*exists)
+			err := client.DeleteAllOf(ctx, &rbacv1.RoleBinding{},
+				&clientv1.DeleteAllOfOptions{
+					ListOptions: clientv1.ListOptions{
+						LabelSelector: selector,
+						Namespace:     ns.Name,
+					},
+					DeleteOptions: clientv1.DeleteOptions{},
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+
+			selector = labels.NewSelector()
+			exists, _ = labels.NewRequirement("t7d.io.rolebinding", selection.Exists, []string{})
+			selector = selector.Add(*exists)
+			err = client.DeleteAllOf(ctx, &rbacv1.RoleBinding{},
+				&clientv1.DeleteAllOfOptions{
+					ListOptions: clientv1.ListOptions{
+						LabelSelector: selector,
+						Namespace:     ns.Name,
+					},
+					DeleteOptions: clientv1.DeleteOptions{},
+				})
+			if err != nil {
+				klog.Error(err)
+			}
+		}
 
 		return &response
 	}
@@ -174,9 +220,25 @@ func (h *handler) patchResponseForOwnerRef(tenant *capsulev1beta1.Tenant, ns *co
 	_ = capsulev1beta1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
+	var removeFromTenant bool
 	o, err := json.Marshal(ns.DeepCopy())
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	if remove, ok := ns.ObjectMeta.Labels["removedFromTenant"]; ok && remove == "true" {
+		removeFromTenant = true
+		ns.OwnerReferences = nil
+		delete(ns.ObjectMeta.Labels, "capsule.clastix.io/tenant")
+		delete(ns.ObjectMeta.Labels, "removedFromTenant")
+	}
+
+	if removeFromTenant {
+		c, err := json.Marshal(ns)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		respose := admission.PatchResponseFromRaw(o, c)
+		return respose
 	}
 
 	if err = controllerutil.SetControllerReference(tenant, ns, scheme); err != nil {
@@ -186,7 +248,6 @@ func (h *handler) patchResponseForOwnerRef(tenant *capsulev1beta1.Tenant, ns *co
 	}
 
 	recorder.Eventf(tenant, corev1.EventTypeNormal, "NamespaceCreationWebhook", "Namespace %s has been assigned to the desired Tenant", ns.GetName())
-
 	c, err := json.Marshal(ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
