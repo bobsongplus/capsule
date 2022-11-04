@@ -124,8 +124,9 @@ func (r *Manager) syncAdditionalRoleBinding(ctx context.Context, tenant *capsule
 		var res controllerutil.OperationResult
 		res, err = controllerutil.CreateOrUpdate(ctx, r.Client, target, func() error {
 			target.ObjectMeta.Labels = map[string]string{
-				tenantLabel:      tenant.Name,
-				roleBindingLabel: roleBindingHashLabel,
+				tenantLabel:          tenant.Name,
+				roleBindingLabel:     roleBindingHashLabel,
+				"t7d.io.rolebinding": "true",
 			}
 			target.RoleRef = rbacv1.RoleRef{
 				APIGroup: rbacv1.GroupName,
