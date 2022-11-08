@@ -6,9 +6,13 @@ import (
 	"hash/fnv"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
+
 	"golang.org/x/sync/errgroup"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	capsulev1beta1 "github.com/clastix/capsule/api/v1beta1"
@@ -96,7 +100,16 @@ func (r *Manager) syncAdditionalRoleBinding(ctx context.Context, tenant *capsule
 	if roleBindingLabel, err = capsulev1beta1.GetTypeLabel(&rbacv1.RoleBinding{}); err != nil {
 		return
 	}
+	// check namespace belong this tenant or not
+	namespace := &corev1.Namespace{}
+	if err = r.Client.Get(ctx, types.NamespacedName{Name: ns}, namespace); err != nil {
+		return
+	}
 
+	if namespace.Labels[tenantLabel] == "" {
+		klog.Warningf("namespace [%s] removed already from tenant: %s", ns, tenant.Name)
+		return
+	}
 	if err = r.pruningResources(ctx, ns, keys, &rbacv1.RoleBinding{}); err != nil {
 		return
 	}
