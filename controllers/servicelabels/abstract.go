@@ -55,6 +55,9 @@ func (r *abstractServiceLabelsReconciler) Reconcile(ctx context.Context, request
 
 		return reconcile.Result{}, err
 	}
+	if tenant.Spec.ServiceOptions == nil {
+		return reconcile.Result{}, nil
+	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.client, r.obj, func() (err error) {
 		r.obj.SetLabels(r.sync(r.obj.GetLabels(), tenant.Spec.ServiceOptions.AdditionalMetadata.Labels))

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	goRuntime "runtime"
-	"time"
 
 	flag "github.com/spf13/pflag"
 	"go.uber.org/zap/zapcore"
@@ -112,7 +111,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	resynPeriod := 30 * time.Second
 	manager, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -120,7 +118,6 @@ func main() {
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "42c733ea.clastix.capsule.io",
 		HealthProbeBindAddress: ":10080",
-		SyncPeriod:             &resynPeriod,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
