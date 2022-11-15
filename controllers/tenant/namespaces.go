@@ -10,7 +10,9 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -166,15 +168,23 @@ func (r *Manager) ensureNamespaceCount(ctx context.Context, tenant *capsulev1bet
 
 func (r *Manager) collectNamespaces(ctx context.Context, tenant *capsulev1beta1.Tenant) error {
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() (err error) {
-		list := &corev1.NamespaceList{}
-		err = r.Client.List(ctx, list, client.MatchingFieldsSelector{
-			Selector: fields.OneTermEqualSelector(".metadata.ownerReferences[*].capsule", tenant.GetName()),
-		})
+		// list := &corev1.NamespaceList{}
+		// err = r.Client.List(ctx, list, client.MatchingFieldsSelector{
+		// 	Selector: fields.OneTermEqualSelector(".metadata.ownerReferences[*].capsule", tenant.GetName()),
+		// })
+
+		// Using client-go Client instead of Manager client to get the latest namespaces list in the tenant.
+		// Namespace list got by the manager client is an old version sometimes
+		ln, _ := capsulev1beta1.GetTypeLabel(tenant)
+		selector := labels.NewSelector()
+		exists, _ := labels.NewRequirement(ln, selection.Exists, []string{})
+		selector.Add(*exists)
+
+		list, err := r.RawClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{LabelSelector: selector.String()})
 
 		if err != nil {
 			return
 		}
-
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, tenant.DeepCopy(), func() error {
 			tenant.AssignNamespaces(list.Items)
 

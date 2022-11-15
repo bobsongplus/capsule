@@ -6,6 +6,8 @@ package v1beta1
 import (
 	"sort"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -30,6 +32,10 @@ func (t *Tenant) AssignNamespaces(namespaces []corev1.Namespace) {
 	var l []string
 
 	for _, ns := range namespaces {
+		if !t.nsBlongTenant(ns.OwnerReferences) {
+			continue
+		}
+
 		if ns.Status.Phase == corev1.NamespaceActive {
 			l = append(l, ns.GetName())
 		}
@@ -43,4 +49,17 @@ func (t *Tenant) AssignNamespaces(namespaces []corev1.Namespace) {
 
 func (t *Tenant) GetOwnerProxySettings(name string, kind OwnerKind) []ProxySettings {
 	return t.Spec.Owners.FindOwner(name, kind).ProxyOperations
+}
+
+func (t *Tenant) nsBlongTenant(ownerReference []metav1.OwnerReference) bool {
+	if ownerReference == nil {
+		return false
+	}
+	for _, or := range ownerReference {
+		if or.Kind == "Tenant" {
+			return true
+		}
+	}
+	return false
+
 }

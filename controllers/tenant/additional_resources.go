@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -92,6 +93,12 @@ func (r *Manager) syncAdditionalResources(tenant *capsulev1beta1.Tenant) error {
 	}
 	errGroup := new(errgroup.Group)
 	for _, n := range ns.Items {
+		//  If Namespace's status is not Active should skip adding additional resources in the Namespace.
+		// The additional resource like be role or rolebiding defined in Tenant resource.
+		if n.Status.Phase != corev1.NamespaceActive {
+			klog.Warningf("namespace [%s] cannot create addtional resource, status [%v]", n.Name, n.Status.Phase)
+			continue
+		}
 		for _, o := range a.Items {
 			errGroup.Go(createResource(n.Name, o))
 		}

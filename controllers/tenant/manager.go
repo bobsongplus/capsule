@@ -8,6 +8,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
@@ -23,6 +24,7 @@ type Manager struct {
 	Log        logr.Logger
 	Recorder   record.EventRecorder
 	RESTConfig *rest.Config
+	RawClient  kubernetes.Clientset
 }
 
 func (r *Manager) SetupWithManager(mgr ctrl.Manager) error {

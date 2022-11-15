@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilVersion "k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -110,7 +111,6 @@ func main() {
 		setupLog.Error(fmt.Errorf("missing CapsuleConfiguration resource name"), "unable to start manager")
 		os.Exit(1)
 	}
-
 	manager, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -168,11 +168,19 @@ func main() {
 		}
 	}
 
+	//provide a raw k8s client to read from API Server directly instead of runtime cache
+	kclient, err := kubernetes.NewForConfig(manager.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "creating kubernetes clientset client")
+		os.Exit(1)
+	}
+
 	if err = (&tenantcontroller.Manager{
 		RESTConfig: manager.GetConfig(),
 		Client:     manager.GetClient(),
 		Log:        ctrl.Log.WithName("controllers").WithName("Tenant"),
 		Recorder:   manager.GetEventRecorderFor("tenant-controller"),
+		RawClient:  *kclient,
 	}).SetupWithManager(manager); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tenant")
 		os.Exit(1)
