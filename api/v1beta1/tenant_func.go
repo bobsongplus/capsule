@@ -55,8 +55,10 @@ func (t *Tenant) nsBlongTenant(ownerReference []metav1.OwnerReference) bool {
 	if ownerReference == nil {
 		return false
 	}
+
+	// Checking the namespace belongs to this tenant or not should checking ownerReference.Kind and ownerReference.Name.
 	for _, or := range ownerReference {
-		if or.Kind == "Tenant" {
+		if or.Kind == "Tenant" && or.Name == t.Name {
 			return true
 		}
 	}

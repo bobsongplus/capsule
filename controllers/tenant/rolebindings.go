@@ -106,11 +106,13 @@ func (r *Manager) syncAdditionalRoleBinding(ctx context.Context, tenant *capsule
 		return
 	}
 
-	if namespace.Labels[tenantLabel] == "" {
-		klog.Warningf("namespace [%s] removed already from tenant: %s", ns, tenant.Name)
+	if err = r.pruningResources(ctx, ns, keys, &rbacv1.RoleBinding{}); err != nil {
 		return
 	}
-	if err = r.pruningResources(ctx, ns, keys, &rbacv1.RoleBinding{}); err != nil {
+
+	// if namespace hasn't tenantLabel, just print warning message, shouldn't panic.
+	if namespace.Labels[tenantLabel] == "" {
+		klog.Warningf("namespace [%s] removed already from tenant: %s", ns, tenant.Name)
 		return
 	}
 

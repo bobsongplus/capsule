@@ -13,6 +13,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,7 +56,7 @@ func (r *abstractServiceLabelsReconciler) Reconcile(ctx context.Context, request
 
 		return reconcile.Result{}, err
 	}
-	if tenant.Spec.ServiceOptions == nil {
+	if tenant == nil || tenant.Spec.ServiceOptions == nil {
 		return reconcile.Result{}, nil
 	}
 
@@ -86,8 +87,10 @@ func (r *abstractServiceLabelsReconciler) getTenant(ctx context.Context, namespa
 		return nil, err
 	}
 
+	// if tenant hasn't serviceOptions, just print warning message, shouldn't return error.
 	if tenant.Spec.ServiceOptions == nil || tenant.Spec.ServiceOptions.AdditionalMetadata == nil {
-		return nil, NewNoServicesMetadata(namespacedName.Name)
+		klog.Warning(NewNoServicesMetadata(namespacedName.Name))
+		return nil, nil
 	}
 
 	return tenant, nil
