@@ -54,6 +54,17 @@ func (r *Manager) syncNamespaceMetadata(ctx context.Context, namespace string, t
 
 		capsuleLabel, _ := capsulev1beta1.GetTypeLabel(&capsulev1beta1.Tenant{})
 
+		// if namespace doesn't belongs  tenant, shouldn't add tenant label on namesapce.
+		if ns.OwnerReferences == nil {
+			return
+		}
+		if !tenantOwnerReference(ns.OwnerReferences) {
+			return
+		}
+		if ns.Labels != nil && ns.Labels[capsuleLabel] == "" {
+			return
+		}
+
 		res, conflictErr = controllerutil.CreateOrUpdate(ctx, r.Client, ns, func() error {
 			annotations := make(map[string]string)
 			labels := map[string]string{
@@ -193,4 +204,13 @@ func (r *Manager) collectNamespaces(ctx context.Context, tenant *capsulev1beta1.
 
 		return
 	})
+}
+
+func tenantOwnerReference(ownerReferences []metav1.OwnerReference) bool {
+	for _, or := range ownerReferences {
+		if or.Kind == "Tenant" {
+			return true
+		}
+	}
+	return false
 }
