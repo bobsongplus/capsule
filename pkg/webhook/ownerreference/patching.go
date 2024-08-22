@@ -89,7 +89,7 @@ func (h *handler) setOwnerRef(ctx context.Context, req admission.Request, client
 		if !utils.IsTenantOwner(tnt.Spec.Owners, req.UserInfo) {
 			recorder.Eventf(tnt, corev1.EventTypeWarning, "NonOwnedTenant", "Namespace %s cannot be assigned to the current Tenant", ns.GetName())
 
-			response := admission.Denied("Cannot assign the desired namespace to a non-owned Tenant")
+			response := admission.Denied(fmt.Sprintf("user [%v] Cannot assign the desired namespace [%s] to a non-owned Tenant [%v]", req.UserInfo.Username, ns.Name, tnt.Name))
 
 			return &response
 		}

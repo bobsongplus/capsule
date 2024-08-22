@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -49,6 +50,7 @@ func (r *Manager) syncNamespaceMetadata(ctx context.Context, namespace string, t
 	err = retry.RetryOnConflict(retry.DefaultBackoff, func() (conflictErr error) {
 		ns := &corev1.Namespace{}
 		if conflictErr = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, ns); err != nil {
+			klog.Error(err)
 			return
 		}
 
